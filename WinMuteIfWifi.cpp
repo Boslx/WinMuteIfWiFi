@@ -32,75 +32,77 @@ int wmain(int argc, wchar_t* argv[])
 bool isConnectedToWifiSSID(wchar_t* ssid)
 {
 	// Declare and initialize variables.
-	HANDLE hClient = nullptr;
+	HANDLE hClient;
 	const DWORD dwMaxClient = 2;
 	DWORD dwCurVersion = 0;
-	DWORD dwResult;
 
 	bool result = false;
 
-	// variables used for WlanEnumInterfaces
-	PWLAN_INTERFACE_INFO_LIST pIfList;
-
 	// variables used for WlanQueryInterfaces for opcode = wlan_intf_opcode_current_connection
-	PWLAN_CONNECTION_ATTRIBUTES pConnectInfo = nullptr;
 	DWORD connectInfoSize = sizeof(WLAN_CONNECTION_ATTRIBUTES);
 	WLAN_OPCODE_VALUE_TYPE opCode;
 
-	dwResult = WlanOpenHandle(dwMaxClient, nullptr, &dwCurVersion, &hClient);
+	DWORD dwResult = WlanOpenHandle(dwMaxClient, nullptr, &dwCurVersion, &hClient);
 	if (FAILED(dwResult)) {
 		wprintf(L"WlanOpenHandle failed with error: %u\n", dwResult);
 	}
-
-	dwResult = WlanEnumInterfaces(hClient, nullptr, &pIfList);
-	if (FAILED(dwResult)) {
-		wprintf(L"WlanEnumInterfaces failed with error: %u\n", dwResult);
-	}
 	else {
-		for (int i = 0; i < static_cast<int>(pIfList->dwNumberOfItems); i++) {
-			auto pIfInfo = static_cast<WLAN_INTERFACE_INFO*>(&pIfList->InterfaceInfo[i]);
+		// variables used for WlanEnumInterfaces
+		PWLAN_INTERFACE_INFO_LIST pIfList;
 
-			// Call WlanQueryInterface to get current connection attributes
-			if (pIfInfo->isState == wlan_interface_state_connected) {
-				dwResult = WlanQueryInterface(hClient, &pIfInfo->InterfaceGuid,
-					wlan_intf_opcode_current_connection,
-					nullptr,
-					&connectInfoSize,
-					reinterpret_cast<PVOID*>(&pConnectInfo),
-					&opCode);
+		dwResult = WlanEnumInterfaces(hClient, nullptr, &pIfList);
+		if (FAILED(dwResult)) {
+			wprintf(L"WlanEnumInterfaces failed with error: %u\n", dwResult);
+		}
+		else {
+			PWLAN_CONNECTION_ATTRIBUTES pConnectInfo = nullptr;
 
-				if (FAILED(dwResult)) {
-					wprintf(L"WlanQueryInterface failed with error: %u\n", dwResult);
-				}
-				else {
-					if (wcslen(ssid) == pConnectInfo->wlanAssociationAttributes.dot11Ssid.uSSIDLength) {
-						result = true;
-						for (unsigned int k = 0;
-							k < pConnectInfo->wlanAssociationAttributes.dot11Ssid.uSSIDLength;
-							k++) {
+			for (int i = 0; i < static_cast<int>(pIfList->dwNumberOfItems); i++) {
+				auto pIfInfo = static_cast<WLAN_INTERFACE_INFO*>(&pIfList->InterfaceInfo[i]);
 
-							if (pConnectInfo->wlanAssociationAttributes.dot11Ssid.ucSSID[k] != ssid[k])
-							{
-								result = false;
-								break;
+				// Call WlanQueryInterface to get current connection attributes
+				if (pIfInfo->isState == wlan_interface_state_connected) {
+					dwResult = WlanQueryInterface(hClient, &pIfInfo->InterfaceGuid,
+						wlan_intf_opcode_current_connection,
+						nullptr,
+						&connectInfoSize,
+						reinterpret_cast<PVOID*>(&pConnectInfo),
+						&opCode);
+
+					if (FAILED(dwResult)) {
+						wprintf(L"WlanQueryInterface failed with error: %u\n", dwResult);
+					}
+					else {
+						if (wcslen(ssid) == pConnectInfo->wlanAssociationAttributes.dot11Ssid.uSSIDLength) {
+							// To save us a few lines of code, we already assume that the given and actual SSID are the same. 
+							result = true;
+
+							for (ULONG k = 0;
+								k < pConnectInfo->wlanAssociationAttributes.dot11Ssid.uSSIDLength;
+								k++) {
+								if (pConnectInfo->wlanAssociationAttributes.dot11Ssid.ucSSID[k] != ssid[k])
+								{
+									result = false;
+									break;
+								}
 							}
 						}
 					}
 				}
+				else {
+					wprintf(L"Not connected to a Wifi\n");
+				}
 			}
-			else {
-				wprintf(L"Not connected to a Wifi\n");
+
+			if (pConnectInfo != nullptr) {
+				WlanFreeMemory(pConnectInfo);
+				pConnectInfo = nullptr;
 			}
 		}
-	}
-	if (pConnectInfo != nullptr) {
-		WlanFreeMemory(pConnectInfo);
-		pConnectInfo = nullptr;
-	}
-
-	if (pIfList != nullptr) {
-		WlanFreeMemory(pIfList);
-		pIfList = nullptr;
+		if (pIfList != nullptr) {
+			WlanFreeMemory(pIfList);
+			pIfList = nullptr;
+		}
 	}
 
 	return result;
