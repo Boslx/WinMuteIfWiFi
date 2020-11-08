@@ -3,4 +3,4 @@ project(WinMuteIfWiF)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(WinMuteIfWiF src/WinMuteIfWifi.cpp src/WinMuteIfWifi.h)
+add_executable(WinMuteIfWiF src/WinMuteIfWifi.cpp src/WinMuteIfWifi.h src/WifiHelper.cpp src/WifiHelper.h)

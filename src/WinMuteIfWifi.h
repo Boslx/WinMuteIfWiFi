@@ -4,7 +4,6 @@
 
 class WinMuteIfWifi {
 public:
-    static bool isConnectedToWifiSSID(wchar_t *string);
     static void mute();
 };
 
